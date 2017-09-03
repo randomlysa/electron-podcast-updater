@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <title>
+        Podcast Updater
+    </title>
+</head>
+<body>
+    <style>
+        @import url('https://fonts.googleapis.com/css?family=Playfair+Display');
+
+        body {
+            font-size: 200%;
+            font-family: 'Playfair Display', serif;
+        }
+        input {
+            font-family: 'Playfair Display', serif;
+            font-size: 150%;
+            width: 90%
+        }
+    </style>
+
+    <h1>Podcast Updater</h1>
+
+    <form>
+        <div>
+            <label>Select a video</label><br>
+            <input type="file" id="file" accept="video/*" /><br />
+            <hr />
+            <input type="text" placeholder="Title" id="title" />
+            <input type="text" placeholder="Speaker" id="speaker" />
+            <input type="text" placeholder="Time" id="time" />
+            <input type="text" placeholder="Date"  id="date" />
+        </div>
+        <button type="submit">Convert to MP3</button>
+    </form>
+
+    <h1 id="result"></h1>
+
+
+    <script>
+        const electron = require('electron');
+        const $ = require('jquery');
+
+        // Set date.
+        const month = new Date().getMonth() + 1
+        const dayOfMonth = new Date().getDate();
+        const year = new Date().getFullYear();
+        const fullDate = `${month}-${dayOfMonth}-${year}`;
+        $( "#date" ).val( fullDate );
+
+        // Set time.
+        const numberToDayOfWeek = {
+            0: 'Sunday',
+            1: 'Monday',
+            2: 'Tuesday',
+            3: 'Wednesday',
+            4: 'Thursday',
+            5: 'Friday',
+            6: 'Saturday'
+        };
+
+        const dayOfWeek = numberToDayOfWeek [ new Date().getDay() ];
+        const timeOfDayNumber = new Date().getHours()
+        if (timeOfDayNumber < 14) {
+            const timeOfDay = "Morning"
+        } else {
+            timeOfDay = "Evening"
+        }
+        $( "#time" ).val( `${dayOfWeek} ${timeOfDay}` );
+
+        const { ipcRenderer } = electron;
+
+        document.querySelector('form').addEventListener('submit', (event) => {
+            event.preventDefault();
+
+            // Get title and file.
+            const title = $( "#title").val();
+            let inputPathAndFile;
+
+            if ($( '#file' )[0].files.length > 0) {
+                inputPathAndFile = $('#file')[0].files[0].path;
+            } else {
+                inputPathAndFile = null;
+            }
+
+            if (!title || !inputPathAndFile) {
+                alert("Please enter a title and select a file.");
+                return;
+            }
+
+            // Join title, speaker, time, and date, add mp3 extension.
+            const newFileName = $( "#title" ).val() + ' - ' +
+                $( "#speaker ").val() + ' - ' +
+                $( "#time ").val() + ' - ' +
+                $( "#date ").val() + ".mp3";
+
+            ipcRenderer.send('video:submit', inputPathAndFile, newFileName);
+        });
+
+        ipcRenderer.on('ffmpeg:status', (event, status) => {
+            document.querySelector('#result').innerHTML = status;
+        })
+    </script>
+
+</body>
