@@ -35,7 +35,8 @@
         <button type="submit">Convert to MP3</button>
     </form>
 
-    <h1 id="result"></h1>
+    <div id="result"></div>
+    <div id="result-audio"></div>
 
 
     <script>
@@ -76,15 +77,21 @@
 
             // Get title and file.
             const title = $( "#title").val();
-            let inputPathAndFile;
+            let fullPathWithFilename;
+            let originalFilename;
 
             if ($( '#file' )[0].files.length > 0) {
-                inputPathAndFile = $('#file')[0].files[0].path;
+                originalFilename = $('#file')[0].files[0].name;
+                fullPathWithFilename = $('#file')[0].files[0].path;
             } else {
-                inputPathAndFile = null;
+                fullPathWithFilename = null;
             }
 
-            if (!title || !inputPathAndFile) {
+            const pathOnly = fullPathWithFilename.substr(0,
+                fullPathWithFilename.length - originalFilename.length
+            );
+
+            if (!title || !fullPathWithFilename) {
                 alert("Please enter a title and select a file.");
                 return;
             }
@@ -95,12 +102,27 @@
                 $( "#time ").val() + ' - ' +
                 $( "#date ").val() + ".mp3";
 
-            ipcRenderer.send('video:submit', inputPathAndFile, newFileName);
+            ipcRenderer.send('video:submit',
+                { fullPathWithFilename, newFileName, pathOnly }
+            );
         });
 
-        ipcRenderer.on('ffmpeg:status', (event, status) => {
+        // Audio conversion completed, call upload
+        ipcRenderer.on('ffmpeg:status', (event, status, newFileName, pathOnly) => {
             document.querySelector('#result').innerHTML = status;
+            if (status === 'File Converted Successfully') {
+                ipcRenderer.send('audio:readyToUpload', newFileName, pathOnly)
+            }
         })
+
+        // Call upload.
+        ipcRenderer.on('upload:status', (event, status) => {
+            document.querySelector('#result-audio').innerHTML = status;
+            if (status === 'File upload initiated.') {
+                // ipcRender.send('podcast:openUpdateURL')
+            }
+
+        });
     </script>
 
 </body>
