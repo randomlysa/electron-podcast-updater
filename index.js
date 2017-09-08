@@ -41,6 +41,41 @@ ipcMain.on('video:submit', (event, object) => {
 // Upload MP3 file to server.
 ipcMain.on('audio:readyToUpload', (event, newFileName, pathOnly) => {
 
-    mainWindow.webContents.send('upload:status', 'File upload initiated.');
+    const fullPathAndFilenameToUpload = `./ffmpeg-output/${newFileName}`;
+
+    const Client = require('ftp');
+    const fs = require('fs');
+
+    const c = new Client();
+    c.on('ready', function() {
+      mainWindow.webContents.send('upload:status', 'Ready to upload.');
+        c.put(fullPathAndFilenameToUpload, `./files/${newFileName}`,
+            function(err) {
+                if (err) {
+                    // Error uploading.
+                    throw err;
+                    mainWindow.webContents.send(
+                        'upload:status', 'File upload failed.'
+                    );
+                    c.end();
+                } else {
+                    mainWindow.webContents.send(
+                        'upload:status', 'File upload succeeded.'
+                    );
+                    c.end();
+                }
+        }); // end put
+    }); // end on ready
+
+    // Error connecting.
+    c.on('error', function(e) {
+        mainWindow.webContents.send(
+            'upload:status', 'Error connecting to the server.'
+        );
+    })
+
+    // Get connection info from file and connect.
+    const connectionInfo = require ('./ftpInfo.json');
+    c.connect(connectionInfo);
 
 });
